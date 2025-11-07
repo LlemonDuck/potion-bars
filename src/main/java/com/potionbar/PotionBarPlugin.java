@@ -19,6 +19,7 @@ import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.api.events.ClientTick;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +41,8 @@ public class PotionBarPlugin extends Plugin  {
 
 	@Inject
 	private ItemManager itemManager;
+
+	private boolean rebuildPotions;
 
 	class PotionPanel {
 		public Widget item;
@@ -71,14 +74,17 @@ public class PotionBarPlugin extends Plugin  {
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired event) {
 		int scriptId = event.getScriptId();
-
 		//If Potion Storage is opened
-		if (scriptId == ScriptID.POTIONSTORE_BUILD)  {
+		if (scriptId == ScriptID.POTIONSTORE_BUILD )  {
 			createProgressBars();
 		}
 
-		if (scriptId == ScriptID.POTIONSTORE_DOSE_CHANGE || scriptId == ScriptID.POTIONSTORE_WITHDRAW_DOSES)  {
-			updateProgressBars();
+		if (scriptId == ScriptID.POTIONSTORE_DOSE_CHANGE)  {
+			//updateProgressBars();
+		}
+
+		if (scriptId == ScriptID.POTIONSTORE_WITHDRAW_DOSES)  {
+			rebuildPotions = true;
 		}
 	}
 
@@ -144,6 +150,7 @@ public class PotionBarPlugin extends Plugin  {
 		for (PotionPanel panel : potionPanels) {
 			//Figure out how wide the progress bar should be
 			String str = panel.dosesOriginal.getText();
+			str = str.replaceAll(",", "");
 
 			boolean isUnf = panel.item.getName().contains("(unf)");
 			boolean isMix = panel.item.getName().contains("mix");
@@ -189,20 +196,23 @@ public class PotionBarPlugin extends Plugin  {
 			String doseText = "";
 			int potCount = (int)Math.floor((float)doseCount/(float)fullDoses);
 
+			String doseCountStr = String.format("%,d", doseCount);
+			String potCountStr = String.format("%,d", potCount);
+
 			switch(config.doseDisplay()) {
 				case POTS:
-					doseText = "Pots: " + potCount;
+					doseText = "Pots: " + potCountStr;
 					break;
 				case DOSES:
-					doseText = "Doses: " + doseCount;
+					doseText = "Doses: " + doseCountStr;
 					break;
 
 				case POTS_AND_DOSES:
-					doseText = "Pots: " + potCount + " (" + doseCount + ")";
+					doseText = "Pots: " + potCountStr + " (" + doseCountStr + ")";
 					break;
 
 				case DOSES_AND_POTS:
-					doseText = "Doses: " + doseCount + " (" + potCount + ")";
+					doseText = "Doses: " + doseCountStr + " (" + potCountStr + ")";
 					break;
 			}
 
@@ -210,6 +220,14 @@ public class PotionBarPlugin extends Plugin  {
 
 			panel.dosesDisplay.revalidate();
 			panel.foregroundBar.revalidate();
+		}
+	}
+
+	@Subscribe
+	public void onClientTick(ClientTick event) {
+		if (rebuildPotions) {
+			updateProgressBars();
+			rebuildPotions = false;
 		}
 	}
 }
